@@ -509,7 +509,6 @@ elif section == "Elasticsearch Search":
                                     "content.*"
                                 ],
                                 "type": "best_fields",
-                                "fuzziness": "AUTO"
                             }
                         },
                         size=50,
