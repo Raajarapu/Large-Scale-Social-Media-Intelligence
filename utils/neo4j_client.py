@@ -1,17 +1,30 @@
 import os
+import streamlit as st
 from dotenv import load_dotenv
 from neo4j import GraphDatabase
 
 load_dotenv()
 
-URI = os.getenv("NEO4J_URI")
-USERNAME = os.getenv("NEO4J_USERNAME")
-PASSWORD = os.getenv("NEO4J_PASSWORD")
+
+def get_config(key):
+    try:
+        value = st.secrets.get(key)
+        if value:
+            return str(value)
+    except Exception:
+        pass
+
+    return os.getenv(key)
+
+
+URI = get_config("NEO4J_URI")
+USERNAME = get_config("NEO4J_USERNAME")
+PASSWORD = get_config("NEO4J_PASSWORD")
 
 
 def get_neo4j_stats():
     if not all([URI, USERNAME, PASSWORD]):
-        raise ValueError("Neo4j credentials are missing from .env")
+        raise ValueError("Neo4j credentials are missing from Streamlit Secrets or .env")
 
     driver = GraphDatabase.driver(
         URI,
