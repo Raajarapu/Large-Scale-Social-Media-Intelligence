@@ -8,7 +8,22 @@ import plotly.express as px
 import streamlit as st
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False)
+
+
+def get_config(key):
+    """Read Streamlit Cloud Secrets first, then fall back to local .env."""
+    try:
+        value = st.secrets.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+    except Exception:
+        # Streamlit Secrets may not be configured during local development.
+        pass
+
+    value = os.getenv(key)
+    return value.strip() if value else None
+
 
 BASE = Path(__file__).parent
 
@@ -447,8 +462,8 @@ elif section == "Elasticsearch Search":
 
     st.header("Elasticsearch Social Media Search")
 
-    elastic_url = os.getenv("ELASTICSEARCH_URL")
-    elastic_key = os.getenv("ELASTICSEARCH_API_KEY")
+    elastic_url = get_config("ELASTICSEARCH_URL")
+    elastic_key = get_config("ELASTICSEARCH_API_KEY")
 
     if not elastic_url or not elastic_key:
 
@@ -487,29 +502,57 @@ elif section == "Elasticsearch Search":
                         query={
                             "multi_match": {
                                 "query": query,
-                                "fields": ["text", "clean_text", "topic", "sentiment"]
+                                # CSV fields are indexed inside the "content" object.
+                                "fields": [
+                                    "dataset^3",
+                                    "source_file^2",
+                                    "content.*"
+                                ],
+                                "type": "best_fields",
+                                "fuzziness": "AUTO"
                             }
                         },
-                        size=50
+                        size=50,
+                        track_total_hits=True
                     )
 
-                    hits = [
-                        hit["_source"]
-                        for hit in response["hits"]["hits"]
-                    ]
-
-                    st.write(
-                        "Results:",
-                        response["hits"]["total"]["value"]
+                    search_hits = response["hits"]["hits"]
+                    total_hits = response["hits"]["total"]
+                    total_results = (
+                        total_hits["value"]
+                        if isinstance(total_hits, dict)
+                        else total_hits
                     )
 
-                    if hits:
+                    st.write("Results:", f"{total_results:,}")
+
+                    if search_hits:
+                        # Flatten the nested content object for a readable table.
+                        display_rows = []
+                        for hit in search_hits:
+                            source = hit.get("_source", {})
+                            content = source.get("content", {})
+                            row = {
+                                "dataset": source.get("dataset"),
+                                "source_file": source.get("source_file"),
+                                "record_type": source.get("record_type")
+                            }
+                            if isinstance(content, dict):
+                                row.update(content)
+                            else:
+                                row["content"] = content
+                            display_rows.append(row)
+
                         st.dataframe(
-                            pd.DataFrame(hits),
+                            pd.DataFrame(display_rows),
                             use_container_width=True
                         )
                     else:
-                        st.info("No matching records found.")
+                        st.info(
+                            "No matching records found. Try a dataset name "
+                            "(for example, sentiment_predictions), a subreddit "
+                            "name, or a word present in an indexed record."
+                        )
 
             else:
                 st.error("Unable to verify Elasticsearch connection.")
@@ -532,7 +575,7 @@ st.caption(
     "NetworkX | Neo4j | Elasticsearch | Kibana"
 )
 
-kibana_url = os.getenv("KIBANA_URL")
+kibana_url = get_config("KIBANA_URL")
 
 if kibana_url:
     st.markdown(f"[Open Kibana Dashboard]({kibana_url})")
