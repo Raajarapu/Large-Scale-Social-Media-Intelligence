@@ -497,18 +497,29 @@ elif section == "Elasticsearch Search":
 
                 if query:
 
+                    # Search only fields verified as text in Elasticsearch.
+                    searchable_fields = [
+                        "content.Name",
+                        "content.Representation",
+                        "content.Representative_Docs",
+                        "content.actual_sentiment",
+                        "content.clean_text",
+                        "content.language",
+                        "content.predicted_sentiment",
+                        "content.sentiment",
+                        "content.subreddit",
+                        "content.text",
+                        "dataset",
+                        "source_file"
+                    ]
+
                     response = es.search(
                         index=index_name,
                         query={
                             "multi_match": {
                                 "query": query,
-                                # CSV fields are indexed inside the "content" object.
-                                "fields": [
-                                    "dataset^3",
-                                    "source_file^2",
-                                    "content.*"
-                                ],
-                                "type": "best_fields",
+                                "fields": searchable_fields,
+                                "type": "best_fields"
                             }
                         },
                         size=50,
@@ -517,6 +528,7 @@ elif section == "Elasticsearch Search":
 
                     search_hits = response["hits"]["hits"]
                     total_hits = response["hits"]["total"]
+
                     total_results = (
                         total_hits["value"]
                         if isinstance(total_hits, dict)
@@ -526,20 +538,21 @@ elif section == "Elasticsearch Search":
                     st.write("Results:", f"{total_results:,}")
 
                     if search_hits:
-                        # Flatten the nested content object for a readable table.
                         display_rows = []
+
                         for hit in search_hits:
                             source = hit.get("_source", {})
                             content = source.get("content", {})
+
                             row = {
                                 "dataset": source.get("dataset"),
                                 "source_file": source.get("source_file"),
                                 "record_type": source.get("record_type")
                             }
+
                             if isinstance(content, dict):
                                 row.update(content)
-                            else:
-                                row["content"] = content
+
                             display_rows.append(row)
 
                         st.dataframe(
@@ -547,11 +560,7 @@ elif section == "Elasticsearch Search":
                             use_container_width=True
                         )
                     else:
-                        st.info(
-                            "No matching records found. Try a dataset name "
-                            "(for example, sentiment_predictions), a subreddit "
-                            "name, or a word present in an indexed record."
-                        )
+                        st.info("No matching records found.")
 
             else:
                 st.error("Unable to verify Elasticsearch connection.")
