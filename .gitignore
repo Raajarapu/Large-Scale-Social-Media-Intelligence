@@ -1,0 +1,42 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data files
+data/raw/
+data/processed/
+
+# Model files
+models/*.pkl
+models/*.joblib
+
+# System files
+.DS_Store
+Thumbs.db
+
+# External datasets
+data/external/
+
+# Raw datasets
+data/raw/
+
+# Processed datasets
+data/processed/
+
+# Large model files
+models/*.pkl
+models/*.joblib
+models/*.pt
+models/*.bin

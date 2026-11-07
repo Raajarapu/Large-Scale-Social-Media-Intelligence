@@ -1,0 +1,2 @@
+accuracy,weighted_f1,training_records,validation_records,testing_records
+0.2296764009471192,0.23129159465738452,10240,1284,1267
